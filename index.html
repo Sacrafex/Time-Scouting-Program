@@ -117,15 +117,9 @@
       display: inline-block;
     }
     /* Presentation mode styles */
-    .presentation-mode {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: white;
-      z-index: 1000;
-      overflow: auto;
+    .presentation-content {
+      max-width: 90%;
+      margin: 0 auto;
       padding: 20px;
     }
     .presentation-header {
@@ -133,17 +127,9 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 20px;
-    }
-    .presentation-content {
-      max-width: 90%;
-      margin: 0 auto;
-    }
-    .close-presentation {
-      background-color: #e74c3c;
-      padding: 8px 15px;
-    }
-    .close-presentation:hover {
-      background-color: #c0392b;
+      background: #3498db;
+      color: white;
+      padding: 10px 20px;
     }
     .display-selector {
       margin: 10px 0;
@@ -177,6 +163,7 @@
     <label>View:</label><select id="view-select"></select>
     <label>Metric:</label><select id="metric-select"></select>
     <button id="exportButton">Export Data</button>
+    <button onclick="openPresentationMode()">Open Presentation Mode (Ctrl+Enter)</button>
     
     <div class="import-section">
       <div class="file-input-container">
@@ -191,26 +178,6 @@
     </div>
   </div>
 
-  <div id="presentation-mode" class="presentation-mode" style="display:none;">
-    <div class="presentation-header">
-      <h1>Scouting Results - Presentation Mode</h1>
-      <button class="close-presentation" onclick="togglePresentationMode()">Close (ESC)</button>
-    </div>
-    <div class="display-selector">
-      <label>Display:</label>
-      <select id="presentation-display">
-        <option value="chart">Chart</option>
-        <option value="table">Data Table</option>
-        <option value="both">Both</option>
-      </select>
-      <button onclick="updatePresentation()">Update View</button>
-    </div>
-    <div class="presentation-content">
-      <canvas id="presentation-chart" width="800" height="400" style="display:none;"></canvas>
-      <div id="presentation-table" style="display:none;"></div>
-    </div>
-  </div>
-
   <script>
     let roundsData = {}
     let participantsData = []
@@ -218,36 +185,157 @@
     let startTimes = {}
     let elapsedTimes = {}
     let roundType = "defense"
-    let chart, presentationChart
+    let chart
+    let presentationWindow = null
+    let presentationChart = null
 
     // Key bindings for presentation mode
     document.addEventListener('keydown', function(e) {
       if (e.ctrlKey && e.key === 'Enter') {
-        togglePresentationMode();
-      } else if (e.key === 'Escape' && document.getElementById('presentation-mode').style.display === 'block') {
-        togglePresentationMode();
+        openPresentationMode();
       }
     });
 
-    function togglePresentationMode() {
-      const presentationMode = document.getElementById('presentation-mode');
-      if (presentationMode.style.display === 'none') {
-        presentationMode.style.display = 'block';
-        document.getElementById('main-content').style.display = 'none';
-        updatePresentation();
-      } else {
-        presentationMode.style.display = 'none';
-        document.getElementById('main-content').style.display = 'block';
+    function openPresentationMode() {
+      // Close existing presentation window if it exists
+      if (presentationWindow && !presentationWindow.closed) {
+        presentationWindow.close();
       }
+      
+      // Open new presentation window
+      presentationWindow = window.open('', 'PresentationWindow', 'width=1000,height=800,top=100,left=100');
+      
+      // Write basic HTML structure to the new window
+      presentationWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Scouting Results - Presentation Mode</title>
+          <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 0;
+            }
+            .presentation-content {
+              max-width: 90%;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .presentation-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 20px;
+              background: #3498db;
+              color: white;
+              padding: 10px 20px;
+            }
+            .display-selector {
+              margin: 10px 0;
+              padding: 10px;
+              background: #f0f0f0;
+              border-radius: 5px;
+            }
+            button {
+              background-color: #3498db;
+              color: white;
+              border: none;
+              padding: 6px 12px;
+              border-radius: 3px;
+              cursor: pointer;
+              margin: 2px;
+              font-size: 14px;
+            }
+            button:hover {
+              background-color: #2980b9;
+            }
+            .close-presentation {
+              background-color: #e74c3c;
+              padding: 8px 15px;
+            }
+            .close-presentation:hover {
+              background-color: #c0392b;
+            }
+            canvas {
+              max-width: 100%;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: center;
+            }
+            th {
+              background-color: #3498db;
+              color: white;
+            }
+            tr:nth-child(even) {
+              background-color: #f2f2f2;
+            }
+            .type-attack {
+              color: #e74c3c;
+              font-weight: bold;
+            }
+            .type-defense {
+              color: #27ae60;
+              font-weight: bold;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="presentation-header">
+            <h1>Scouting Results - Live</h1>
+            <button class="close-presentation" style="display:none;" onclick="window.close()">Close (ESC)</button>
+          </div>
+          <div class="presentation-content">
+            <div class="display-selector">
+              <label>Display:</label>
+              <select id="presentation-display">
+                <option value="chart">Chart</option>
+                <option value="table">Data Table</option>
+                <option value="both">Both</option>
+              </select>
+              <button onclick="window.opener.updatePresentation()">Force Update</button>
+            </div>
+            <canvas id="presentation-chart" width="800" height="400" style="display:none;"></canvas>
+            <div id="presentation-table" style="display:none;"></div>
+          </div>
+          <script>
+            // Close window with ESC key
+            document.addEventListener('keydown', function(e) {
+              if (e.key === 'Escape') {
+                window.close();
+              }
+            });
+          <\/script>
+        </body>
+        </html>
+      `);
+      
+      // Close the document for writing
+      presentationWindow.document.close();
+      
+      // Initial update of the presentation
+      updatePresentation();
     }
 
     function updatePresentation() {
-      const displayType = document.getElementById('presentation-display').value;
+      if (!presentationWindow || presentationWindow.closed) {
+        return;
+      }
+      
+      const displayType = presentationWindow.document.getElementById('presentation-display').value;
       
       // Show/hide elements based on selection
-      document.getElementById('presentation-chart').style.display = 
+      presentationWindow.document.getElementById('presentation-chart').style.display = 
         (displayType === 'chart' || displayType === 'both') ? 'block' : 'none';
-      document.getElementById('presentation-table').style.display = 
+      presentationWindow.document.getElementById('presentation-table').style.display = 
         (displayType === 'table' || displayType === 'both') ? 'block' : 'none';
       
       if (displayType === 'chart' || displayType === 'both') {
@@ -259,7 +347,9 @@
     }
 
     function updatePresentationChart() {
-      const ctx = document.getElementById('presentation-chart').getContext('2d');
+      if (!presentationWindow || presentationWindow.closed) return;
+      
+      const ctx = presentationWindow.document.getElementById('presentation-chart').getContext('2d');
       if (presentationChart) presentationChart.destroy();
       
       const metric = document.getElementById('metric-select').value;
@@ -279,7 +369,9 @@
       let vals = labels.map((_, i) => metrics[metric](per[Object.keys(per)[i]]));
       
       // Apply ranking colors
-      const zipped = labels.map((l, i) => [l, vals[i]]).sort((a, b) => b[1] - a[1]);
+      const zipped = labels.map((l, i) => [l, vals[i]]).sort((a, b) => {
+    return metric === "Attack - Defense" ? a[1] - b[1] : b[1] - a[1];
+  });
       const sortedLabels = zipped.map(z => z[0]);
       const sortedVals = zipped.map(z => z[1]);
       
@@ -336,7 +428,9 @@
     }
 
     function renderPresentationTable() {
-      const container = document.getElementById('presentation-table');
+      if (!presentationWindow || presentationWindow.closed) return;
+      
+      const container = presentationWindow.document.getElementById('presentation-table');
       container.innerHTML = '<h2>Detailed Data</h2>';
       
       const participants = new Set();
@@ -459,9 +553,7 @@
       localStorage.setItem("scouting_rounds", JSON.stringify(roundsData));
       loadStoredRounds();
       updateDisplay();
-      if (document.getElementById('presentation-mode').style.display === 'block') {
-        updatePresentation();
-      }
+      updatePresentation();
     }
 
     function deleteRound(r){
@@ -469,9 +561,7 @@
       localStorage.setItem("scouting_rounds", JSON.stringify(roundsData));
       loadStoredRounds();
       updateDisplay();
-      if (document.getElementById('presentation-mode').style.display === 'block') {
-        updatePresentation();
-      }
+      updatePresentation();
     }
 
     function loadStoredRounds(){
@@ -636,7 +726,9 @@
       let vals = labels.map((_, i) => metrics[metric](per[Object.keys(per)[i]]));
       
       // Apply ranking colors to labels
-      const zipped = labels.map((l, i) => [l, vals[i]]).sort((a, b) => b[1] - a[1]);
+      const zipped = labels.map((l, i) => [l, vals[i]]).sort((a, b) => {
+    return metric === "Attack - Defense" ? a[1] - b[1] : b[1] - a[1];
+  });
       const sortedLabels = zipped.map(z => z[0]);
       const sortedVals = zipped.map(z => z[1]);
       
