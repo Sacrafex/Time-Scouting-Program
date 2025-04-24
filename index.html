@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Scouting Time Recorder</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1, h2, h3 {
+      color: #2c3e50;
+    }
+    #participants-list div {
+      margin: 5px 0;
+    }
+    .participant-name {
+      padding: 5px;
+      margin-right: 5px;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      margin: 2px;
+      font-size: 14px;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    #round-timers div {
+      margin: 8px 0;
+    }
+    #stored-rounds div {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    #metrics-chart, #raw-data {
+      margin-top: 20px;
+      border: 1px solid #eee;
+      padding: 15px;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #3498db;
+      color: white;
+      position: sticky;
+      top: 0;
+    }
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    tr:hover {
+      background-color: #e6f7ff;
+    }
+    label {
+      margin-right: 15px;
+    }
+    select {
+      padding: 5px;
+      margin-right: 10px;
+    }
+    .type-attack {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    .type-defense {
+      color: #27ae60;
+      font-weight: bold;
+    }
+    .file-input-container {
+      position: relative;
+      display: inline-block;
+    }
+    .file-input-button {
+      background-color: #3498db;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      display: inline-block;
+      font-size: 14px;
+    }
+    .file-input-button:hover {
+      background-color: #2980b9;
+    }
+    #importFile {
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    .import-section {
+      margin-top: 10px;
+      display: inline-block;
+    }
+    /* Presentation mode styles */
+    .presentation-mode {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      z-index: 1000;
+      overflow: auto;
+      padding: 20px;
+    }
+    .presentation-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .presentation-content {
+      max-width: 90%;
+      margin: 0 auto;
+    }
+    .close-presentation {
+      background-color: #e74c3c;
+      padding: 8px 15px;
+    }
+    .close-presentation:hover {
+      background-color: #c0392b;
+    }
+    .display-selector {
+      margin: 10px 0;
+      padding: 10px;
+      background: #f0f0f0;
+      border-radius: 5px;
+    }
+    /* Ranking colors */
+    .rank-1 { color: #ff0000; font-weight: bold; }
+    .rank-2 { color: #ff9900; font-weight: bold; }
+    .rank-3 { color: #00aa00; font-weight: bold; }
+    .rank-4 { color: #0000ff; font-weight: bold; }
+    .rank-5 { color: #9900ff; font-weight: bold; }
+    .rank-default { color: #666666; }
+  </style>
+</head>
+<body>
+  <div id="main-content">
+    <h1>Scouting Time Recorder</h1>
+    <h2>Manage Participants</h2>
+    <div id="participants-list"></div>
+    <button onclick="addParticipant()">Add Participant</button>
+    <button onclick="generateTimerControls()">Setup Timers for New Round</button>
+    <h2>New Round (<span id="current-type">defense</span>)</h2>
+    <label><input type="radio" name="rt" value="defense" checked onclick="setRoundType('defense')">Defense</label>
+    <label><input type="radio" name="rt" value="attack" onclick="setRoundType('attack')">Attack</label>
+    <div id="round-timers" style="margin:10px 0"></div>
+    <button onclick="saveRound()">Save Round</button>
+    <div id="stored-rounds" style="margin-top:20px"></div>
+    <h2>Analytics</h2>
+    <label>View:</label><select id="view-select"></select>
+    <label>Metric:</label><select id="metric-select"></select>
+    <button id="exportButton">Export Data</button>
+    
+    <div class="import-section">
+      <div class="file-input-container">
+        <span class="file-input-button">Import Data</span>
+        <input type="file" id="importFile" accept=".json">
+      </div>
+    </div>
+    
+    <div style="margin-top:10px">
+      <canvas id="metrics-chart" width="600" height="300"></canvas>
+      <div id="raw-data" style="display:none"></div>
+    </div>
+  </div>
+
+  <div id="presentation-mode" class="presentation-mode" style="display:none;">
+    <div class="presentation-header">
+      <h1>Scouting Results - Presentation Mode</h1>
+      <button class="close-presentation" onclick="togglePresentationMode()">Close (ESC)</button>
+    </div>
+    <div class="display-selector">
+      <label>Display:</label>
+      <select id="presentation-display">
+        <option value="chart">Chart</option>
+        <option value="table">Data Table</option>
+        <option value="both">Both</option>
+      </select>
+      <button onclick="updatePresentation()">Update View</button>
+    </div>
+    <div class="presentation-content">
+      <canvas id="presentation-chart" width="800" height="400" style="display:none;"></canvas>
+      <div id="presentation-table" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    let roundsData = {}
+    let participantsData = []
+    let timers = {}
+    let startTimes = {}
+    let elapsedTimes = {}
+    let roundType = "defense"
+    let chart, presentationChart
+
+    // Key bindings for presentation mode
+    document.addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        togglePresentationMode();
+      } else if (e.key === 'Escape' && document.getElementById('presentation-mode').style.display === 'block') {
+        togglePresentationMode();
+      }
+    });
+
+    function togglePresentationMode() {
+      const presentationMode = document.getElementById('presentation-mode');
+      if (presentationMode.style.display === 'none') {
+        presentationMode.style.display = 'block';
+        document.getElementById('main-content').style.display = 'none';
+        updatePresentation();
+      } else {
+        presentationMode.style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+      }
+    }
+
+    function updatePresentation() {
+      const displayType = document.getElementById('presentation-display').value;
+      
+      // Show/hide elements based on selection
+      document.getElementById('presentation-chart').style.display = 
+        (displayType === 'chart' || displayType === 'both') ? 'block' : 'none';
+      document.getElementById('presentation-table').style.display = 
+        (displayType === 'table' || displayType === 'both') ? 'block' : 'none';
+      
+      if (displayType === 'chart' || displayType === 'both') {
+        updatePresentationChart();
+      }
+      if (displayType === 'table' || displayType === 'both') {
+        renderPresentationTable();
+      }
+    }
+
+    function updatePresentationChart() {
+      const ctx = document.getElementById('presentation-chart').getContext('2d');
+      if (presentationChart) presentationChart.destroy();
+      
+      const metric = document.getElementById('metric-select').value;
+      const per = {};
+      
+      for (const data of Object.values(roundsData)) {
+        for (const [p,t] of Object.entries(data)) {
+          if (p !== "type") {
+            per[p] = per[p] || [];
+            const val = parseFloat(t);
+            per[p].push(metric === "Attack - Defense" ? {type: data.type, val} : val);
+          }
+        }
+      }
+      
+      const labels = Object.keys(per).map(p => p.replace(/_/g, " "));
+      let vals = labels.map((_, i) => metrics[metric](per[Object.keys(per)[i]]));
+      
+      // Apply ranking colors
+      const zipped = labels.map((l, i) => [l, vals[i]]).sort((a, b) => b[1] - a[1]);
+      const sortedLabels = zipped.map(z => z[0]);
+      const sortedVals = zipped.map(z => z[1]);
+      
+      const backgroundColors = [];
+      const borderColors = [];
+      
+      for (let i = 0; i < sortedLabels.length; i++) {
+        if (i === 0) {
+          backgroundColors.push('rgba(255, 0, 0, 0.2)');
+          borderColors.push('rgba(255, 0, 0, 1)');
+        } else if (i === 1) {
+          backgroundColors.push('rgba(255, 153, 0, 0.2)');
+          borderColors.push('rgba(255, 153, 0, 1)');
+        } else if (i === 2) {
+          backgroundColors.push('rgba(0, 170, 0, 0.2)');
+          borderColors.push('rgba(0, 170, 0, 1)');
+        } else if (i === 3) {
+          backgroundColors.push('rgba(0, 0, 255, 0.2)');
+          borderColors.push('rgba(0, 0, 255, 1)');
+        } else if (i === 4) {
+          backgroundColors.push('rgba(153, 0, 255, 0.2)');
+          borderColors.push('rgba(153, 0, 255, 1)');
+        } else {
+          backgroundColors.push('rgba(150, 150, 150, 0.2)');
+          borderColors.push('rgba(150, 150, 150, 1)');
+        }
+      }
+      
+      presentationChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: sortedLabels,
+          datasets: [{
+            label: metric,
+            data: sortedVals,
+            backgroundColor: backgroundColors,
+            borderColor: borderColors,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true } },
+          plugins: {
+            legend: { display: false },
+            title: {
+              display: true,
+              text: metric,
+              font: { size: 20 }
+            }
+          }
+        }
+      });
+    }
+
+    function renderPresentationTable() {
+      const container = document.getElementById('presentation-table');
+      container.innerHTML = '<h2>Detailed Data</h2>';
+      
+      const participants = new Set();
+      const rounds = Object.keys(roundsData).sort();
+      
+      // Collect all participants
+      for (const roundId in roundsData) {
+        for (const key in roundsData[roundId]) {
+          if (key !== 'type') {
+            participants.add(key);
+          }
+        }
+      }
+      
+      const participantsArray = Array.from(participants).sort();
+      
+      if (participantsArray.length === 0 || rounds.length === 0) {
+        container.innerHTML += '<p>No data available</p>';
+        return;
+      }
+      
+      let html = '<div style="overflow-x:auto;"><table><thead><tr><th>Round (Type)</th>';
+      
+      // Add participant headers
+      participantsArray.forEach(p => {
+        html += `<th>${p.replace(/_/g, ' ')}</th>`;
+      });
+      
+      html += '</tr></thead><tbody>';
+      
+      // Add data rows
+      rounds.forEach(roundId => {
+        const roundData = roundsData[roundId];
+        const typeClass = roundData.type === 'attack' ? 'type-attack' : 'type-defense';
+        
+        html += `<tr><td><strong>${roundId}</strong> <span class="${typeClass}">(${roundData.type})</span></td>`;
+        
+        participantsArray.forEach(p => {
+          if (roundData[p]) {
+            html += `<td>${roundData[p]}</td>`;
+          } else {
+            html += '<td>-</td>';
+          }
+        });
+        
+        html += '</tr>';
+      });
+      
+      html += '</tbody></table></div>';
+      container.innerHTML += html;
+    }
+
+    function saveParticipantsToCookies(){
+      const ps = Array.from(document.querySelectorAll(".participant-name")).map(i => i.value.trim()).filter(v => v);
+      participantsData = ps;
+      document.cookie = "participants=" + JSON.stringify(ps) + ";path=/";
+    }
+
+    function loadParticipantsFromCookies(){
+      const c = document.cookie.split("; ").find(x => x.startsWith("participants="));
+      if (!c) return;
+      participantsData = JSON.parse(c.split("=")[1]);
+      participantsData.forEach(n => addParticipant(n));
+    }
+
+    function addParticipant(name = ""){
+      const div = document.createElement("div");
+      div.innerHTML = `<input class="participant-name" value="${name}" oninput="saveParticipantsToCookies()"><button onclick="this.parentElement.remove();saveParticipantsToCookies()">Remove</button>`;
+      document.getElementById("participants-list").appendChild(div);
+      saveParticipantsToCookies();
+    }
+
+    function generateTimerControls(){
+      const names = Array.from(document.querySelectorAll(".participant-name")).map(i => i.value.trim()).filter(v => v);
+      if (!names.length) return;
+      const c = document.getElementById("round-timers");
+      c.innerHTML = "";
+      elapsedTimes = {};
+      names.forEach(n => {
+        const id = n.replace(/\s+/g, "_");
+        c.innerHTML += `<div><strong>${n}</strong> <span id="disp_${id}">0.00</span>s <button id="btn_${id}" onclick="toggleTimer('${id}')">Start</button></div>`;
+      });
+    }
+
+    function toggleTimer(id){
+      const btn = document.getElementById("btn_" + id);
+      if (!timers[id]) {
+        startTimes[id] = Date.now();
+        btn.innerText = "Stop";
+        timers[id] = setInterval(() => document.getElementById("disp_" + id).innerText = ((Date.now() - startTimes[id]) / 1000).toFixed(2), 50);
+      } else {
+        clearInterval(timers[id]);
+        timers[id] = null;
+        elapsedTimes[id] = (Date.now() - startTimes[id]) / 1000;
+        document.getElementById("disp_" + id).innerText = elapsedTimes[id].toFixed(2);
+        btn.innerText = "Start";
+      }
+    }
+
+    function setRoundType(t){
+      roundType = t;
+      document.getElementById("current-type").innerText = t;
+    }
+
+    function genRoundId(){
+      let max = 0;
+      Object.keys(roundsData).forEach(r => {
+        const m = r.match(/^R(\d+)$/);
+        if (m) max = Math.max(max, +m[1]);
+      });
+      return "R" + (max + 1);
+    }
+
+    function saveRound(){
+      const keys = Object.keys(elapsedTimes);
+      if (!keys.length) return;
+      const rid = genRoundId();
+      roundsData[rid] = { type: roundType };
+      keys.forEach(k => roundsData[rid][k] = elapsedTimes[k].toFixed(2));
+      localStorage.setItem("scouting_rounds", JSON.stringify(roundsData));
+      loadStoredRounds();
+      updateDisplay();
+      if (document.getElementById('presentation-mode').style.display === 'block') {
+        updatePresentation();
+      }
+    }
+
+    function deleteRound(r){
+      delete roundsData[r];
+      localStorage.setItem("scouting_rounds", JSON.stringify(roundsData));
+      loadStoredRounds();
+      updateDisplay();
+      if (document.getElementById('presentation-mode').style.display === 'block') {
+        updatePresentation();
+      }
+    }
+
+    function loadStoredRounds(){
+      const data = localStorage.getItem("scouting_rounds");
+      roundsData = data ? JSON.parse(data) : {};
+      const c = document.getElementById("stored-rounds");
+      c.innerHTML = "<h2>Stored Rounds</h2>";
+      for (const [r, data] of Object.entries(roundsData)) {
+        c.innerHTML += `<div><strong>${r} (${data.type})</strong> <button onclick="deleteRound('${r}')">Delete</button><div>` +
+          Object.entries(data).filter(([k]) => k !== "type").map(([p, t]) => `<p>${p.replace(/_/g, " ")}: ${t}s</p>`).join("") +
+          `</div></div>`;
+      }
+    }
+
+    const metrics = {
+      "Average": arr => arr.reduce((a, b) => a + b, 0) / arr.length,
+      "Min": arr => Math.min(...arr),
+      "Max": arr => Math.max(...arr),
+      "Median": arr => { const s = [...arr].sort((a, b) => a - b), m = s.length; return m % 2 ? s[(m - 1) / 2] : (s[m / 2 - 1] + s[m / 2]) / 2 },
+      "Std Dev": arr => { const mu = metrics["Average"](arr); return Math.sqrt(arr.reduce((a, b) => a + (b - mu) ** 2, 0) / arr.length) },
+      "Variance": arr => { const sd = metrics["Std Dev"](arr); return sd * sd },
+      "Sum": arr => arr.reduce((a, b) => a + b, 0),
+      "Count": arr => arr.length,
+      "Range": arr => Math.max(...arr) - Math.min(...arr),
+      "90th Percentile": arr => { const s = [...arr].sort((a, b) => a - b), idx = 0.9 * (s.length - 1), lo = Math.floor(idx), hi = Math.ceil(idx), f = idx - lo; return s[lo] + (s[hi] - s[lo]) * f },
+      "Attack - Defense": arr => { const atk = arr.filter(x => x.type === "attack").map(x => x.val), defa = arr.filter(x => x.type === "defense").map(x => x.val), avg = a => a.reduce((u, v) => u + v, 0) / a.length || 0; return avg(atk) - avg(defa) }
+    }
+
+    function setupControls(){
+      const ms = document.getElementById("metric-select");
+      Object.keys(metrics).forEach(m => ms.innerHTML += `<option>${m}</option>`);
+      ms.onchange = updateDisplay;
+      const vs = document.getElementById("view-select");
+      vs.innerHTML = `<option value="Stats">Stats</option><option value="Data Points">Data Points</option>`;
+      vs.onchange = updateDisplay;
+      document.getElementById("exportButton").onclick = exportData;
+      document.getElementById("importFile").addEventListener("change", handleFileImport);
+    }
+
+    function exportData() {
+      const exportObj = {
+        participants: participantsData,
+        rounds: roundsData
+      };
+      const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "scouting_data.json";
+      link.click();
+    }
+
+    function handleFileImport(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.participants) {
+            participantsData = data.participants;
+            // Clear existing participants
+            document.getElementById("participants-list").innerHTML = "";
+            // Add new participants
+            participantsData.forEach(name => addParticipant(name));
+          }
+          if (data.rounds) {
+            roundsData = data.rounds;
+            localStorage.setItem("scouting_rounds", JSON.stringify(roundsData));
+            loadStoredRounds();
+            updateDisplay();
+          }
+          alert("Data imported successfully!");
+        } catch (error) {
+          alert("Error importing file: " + error.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function updateDisplay() {
+      const view = document.getElementById("view-select").value;
+      if (view === "Data Points") {
+        document.getElementById("metrics-chart").style.display = "none";
+        document.getElementById("raw-data").style.display = "block";
+        renderRawData();
+      } else {
+        document.getElementById("metrics-chart").style.display = "block";
+        document.getElementById("raw-data").style.display = "none";
+        renderChart();
+      }
+    }
+
+    function renderRawData() {
+      const rd = document.getElementById("raw-data");
+      rd.innerHTML = "<h3>Raw Data Points</h3>";
+      
+      const participants = new Set();
+      const rounds = Object.keys(roundsData).sort();
+      
+      // Collect all participants
+      for (const roundId in roundsData) {
+        for (const key in roundsData[roundId]) {
+          if (key !== 'type') {
+            participants.add(key);
+          }
+        }
+      }
+      
+      const participantsArray = Array.from(participants).sort();
+      
+      if (participantsArray.length === 0 || rounds.length === 0) {
+        rd.innerHTML += '<p>No data available</p>';
+        return;
+      }
+      
+      let html = '<div style="overflow-x:auto;"><table><thead><tr><th>Round (Type)</th>';
+      
+      // Add participant headers
+      participantsArray.forEach(p => {
+        html += `<th>${p.replace(/_/g, ' ')}</th>`;
+      });
+      
+      html += '</tr></thead><tbody>';
+      
+      // Add data rows
+      rounds.forEach(roundId => {
+        const roundData = roundsData[roundId];
+        const typeClass = roundData.type === 'attack' ? 'type-attack' : 'type-defense';
+        
+        html += `<tr><td><strong>${roundId}</strong> <span class="${typeClass}">(${roundData.type})</span></td>`;
+        
+        participantsArray.forEach(p => {
+          if (roundData[p]) {
+            html += `<td>${roundData[p]}</td>`;
+          } else {
+            html += '<td>-</td>';
+          }
+        });
+        
+        html += '</tr>';
+      });
+      
+      html += '</tbody></table></div>';
+      rd.innerHTML += html;
+    }
+
+    function renderChart() {
+      const metric = document.getElementById("metric-select").value;
+      const per = {};
+      for (const data of Object.values(roundsData)) {
+        for (const [p, t] of Object.entries(data)) {
+          if (p !== "type") {
+            per[p] = per[p] || [];
+            const val = parseFloat(t);
+            per[p].push(metric === "Attack - Defense" ? { type: data.type, val } : val);
+          }
+        }
+      }
+      
+      const labels = Object.keys(per).map(p => p.replace(/_/g, " "));
+      let vals = labels.map((_, i) => metrics[metric](per[Object.keys(per)[i]]));
+      
+      // Apply ranking colors to labels
+      const zipped = labels.map((l, i) => [l, vals[i]]).sort((a, b) => b[1] - a[1]);
+      const sortedLabels = zipped.map(z => z[0]);
+      const sortedVals = zipped.map(z => z[1]);
+      
+      const backgroundColors = [];
+      const borderColors = [];
+      
+      for (let i = 0; i < sortedLabels.length; i++) {
+        if (i === 0) {
+          backgroundColors.push('rgba(255, 0, 0, 0.2)');
+          borderColors.push('rgba(255, 0, 0, 1)');
+        } else if (i === 1) {
+          backgroundColors.push('rgba(255, 153, 0, 0.2)');
+          borderColors.push('rgba(255, 153, 0, 1)');
+        } else if (i === 2) {
+          backgroundColors.push('rgba(0, 170, 0, 0.2)');
+          borderColors.push('rgba(0, 170, 0, 1)');
+        } else if (i === 3) {
+          backgroundColors.push('rgba(0, 0, 255, 0.2)');
+          borderColors.push('rgba(0, 0, 255, 1)');
+        } else if (i === 4) {
+          backgroundColors.push('rgba(153, 0, 255, 0.2)');
+          borderColors.push('rgba(153, 0, 255, 1)');
+        } else {
+          backgroundColors.push('rgba(150, 150, 150, 0.2)');
+          borderColors.push('rgba(150, 150, 150, 1)');
+        }
+      }
+      
+      const ctx = document.getElementById("metrics-chart").getContext("2d");
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: sortedLabels,
+          datasets: [{
+            label: metric,
+            data: sortedVals,
+            backgroundColor: backgroundColors,
+            borderColor: borderColors,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true } },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  label += context.parsed.y.toFixed(2);
+                  return label;
+                }
+              }
+            }
+          }
+        }
+      });
+      
+      // Color code the names in the chart based on ranking
+      const chartLegend = document.querySelector('#metrics-chart').parentNode.querySelector('.chart-legend');
+      if (chartLegend) chartLegend.remove();
+      
+      const legendContainer = document.createElement('div');
+      legendContainer.className = 'chart-legend';
+      legendContainer.style.marginTop = '10px';
+      legendContainer.style.textAlign = 'center';
+      
+      sortedLabels.forEach((label, index) => {
+        const span = document.createElement('span');
+        span.style.display = 'inline-block';
+        span.style.margin = '0 10px';
+        
+        if (index === 0) {
+          span.className = 'rank-1';
+        } else if (index === 1) {
+          span.className = 'rank-2';
+        } else if (index === 2) {
+          span.className = 'rank-3';
+        } else if (index === 3) {
+          span.className = 'rank-4';
+        } else if (index === 4) {
+          span.className = 'rank-5';
+        } else {
+          span.className = 'rank-default';
+        }
+        
+        span.textContent = label;
+        legendContainer.appendChild(span);
+      });
+      
+      document.querySelector('#metrics-chart').parentNode.appendChild(legendContainer);
+    }
+
+    window.onload = function() {
+      loadParticipantsFromCookies();
+      loadStoredRounds();
+      setupControls();
+      updateDisplay();
+    }
+  </script>
+</body>
+</html>
