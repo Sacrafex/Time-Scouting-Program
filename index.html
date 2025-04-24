@@ -250,72 +250,6 @@
             justify-content: flex-end;
         }
 
-        /* Presentation mode styles */
-        .presentation-window {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #f8f9fa;
-            z-index: 1000;
-            padding: 2rem;
-            overflow: auto;
-            display: none;
-        }
-
-        .presentation-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .presentation-title {
-            font-size: 2rem;
-            color: var(--primary);
-            font-weight: 700;
-        }
-
-        .close-presentation {
-            background-color: var(--danger);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        .presentation-groups {
-            display: grid;
-            gap: 2rem;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        }
-
-        .presentation-group {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            padding: 1.5rem;
-        }
-
-        .presentation-group-title {
-            font-size: 1.5rem;
-            color: var(--primary);
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid var(--primary);
-        }
-
-        .presentation-member {
-            padding: 0.75rem;
-            margin-bottom: 0.5rem;
-            background-color: var(--light);
-            border-radius: 5px;
-            font-size: 1.1rem;
-        }
-
         @media (max-width: 768px) {
             .container {
                 padding: 1.5rem;
@@ -332,10 +266,6 @@
             }
             
             #groupsContainer {
-                grid-template-columns: 1fr;
-            }
-
-            .presentation-groups {
                 grid-template-columns: 1fr;
             }
         }
@@ -369,7 +299,6 @@
                 <button id="clearStudents" class="secondary">Clear All</button>
                 <button id="saveClass" class="secondary">Save Class</button>
                 <button id="loadClass" class="secondary">Load Class</button>
-                <button id="openPresentation" class="secondary">Open Presentation</button>
             </div>
         </div>
         
@@ -378,17 +307,6 @@
             <div id="groupsContainer">
                 <div class="empty-state">Groups will appear here</div>
             </div>
-        </div>
-    </div>
-
-    <!-- Presentation Window (hidden by default) -->
-    <div id="presentationWindow" class="presentation-window">
-        <div class="presentation-header">
-            <div class="presentation-title">Class Groups</div>
-            <button class="close-presentation" id="closePresentation">Close</button>
-        </div>
-        <div id="presentationGroups" class="presentation-groups">
-            <div class="empty-state">No groups to display</div>
         </div>
     </div>
 
@@ -402,18 +320,12 @@
             const clearStudentsBtn = document.getElementById('clearStudents');
             const saveClassBtn = document.getElementById('saveClass');
             const loadClassBtn = document.getElementById('loadClass');
-            const openPresentationBtn = document.getElementById('openPresentation');
-            const closePresentationBtn = document.getElementById('closePresentation');
             const studentsContainer = document.getElementById('studentsContainer');
             const groupsContainer = document.getElementById('groupsContainer');
-            const presentationWindow = document.getElementById('presentationWindow');
-            const presentationGroups = document.getElementById('presentationGroups');
             const groupError = document.getElementById('groupError');
             
             // State
             let students = [];
-            let groups = [];
-            let presentationWindowRef = null;
             
             // Load students from cookie if available
             loadFromCookie();
@@ -424,8 +336,6 @@
             clearStudentsBtn.addEventListener('click', clearStudents);
             saveClassBtn.addEventListener('click', saveToCookie);
             loadClassBtn.addEventListener('click', loadFromCookie);
-            openPresentationBtn.addEventListener('click', openPresentation);
-            closePresentationBtn.addEventListener('click', closePresentation);
             
             // Allow adding student with Enter key
             studentNameInput.addEventListener('keypress', function(e) {
@@ -442,7 +352,7 @@
                     studentNameInput.value = '';
                     renderStudents();
                     // Clear groups when students change
-                    clearGroups();
+                    groupsContainer.innerHTML = '<div class="empty-state">Groups will appear here</div>';
                 }
             }
             
@@ -475,7 +385,7 @@
                         students.splice(index, 1);
                         renderStudents();
                         // Clear groups when students change
-                        clearGroups();
+                        groupsContainer.innerHTML = '<div class="empty-state">Groups will appear here</div>';
                     });
                 });
             }
@@ -484,13 +394,8 @@
                 const groupCount = parseInt(groupCountInput.value);
                 
                 // Validate input
-                if (isNaN(groupCount) {
-                    showError('Please enter a valid number');
-                    return;
-                }
-                
-                if (groupCount <= 0) {
-                    showError('Number of groups must be at least 1');
+                if (isNaN(groupCount) || groupCount <= 0) {
+                    showError('Please enter a valid number of groups');
                     return;
                 }
                 
@@ -506,7 +411,7 @@
                 const shuffledStudents = [...students].sort(() => Math.random() - 0.5);
                 
                 // Create groups
-                groups = Array.from({ length: groupCount }, () => []);
+                const groups = Array.from({ length: groupCount }, () => []);
                 
                 // Distribute students evenly
                 for (let i = 0; i < shuffledStudents.length; i++) {
@@ -514,11 +419,10 @@
                 }
                 
                 // Display groups
-                renderGroups();
-                renderPresentationGroups();
+                renderGroups(groups);
             }
             
-            function renderGroups() {
+            function renderGroups(groups) {
                 if (groups.length === 0) {
                     groupsContainer.innerHTML = '<div class="empty-state">Groups will appear here</div>';
                     return;
@@ -541,36 +445,12 @@
                 });
             }
             
-            function renderPresentationGroups() {
-                if (groups.length === 0) {
-                    presentationGroups.innerHTML = '<div class="empty-state">No groups to display</div>';
-                    return;
-                }
-                
-                presentationGroups.innerHTML = '';
-                groups.forEach((group, index) => {
-                    const groupElement = document.createElement('div');
-                    groupElement.className = 'presentation-group';
-                    groupElement.innerHTML = `
-                        <div class="presentation-group-title">Group ${index + 1} (${group.length} members)</div>
-                        ${group.map(member => `<div class="presentation-member">${member}</div>`).join('')}
-                    `;
-                    presentationGroups.appendChild(groupElement);
-                });
-            }
-            
             function clearStudents() {
                 if (confirm('Are you sure you want to clear all students?')) {
                     students = [];
                     renderStudents();
-                    clearGroups();
+                    groupsContainer.innerHTML = '<div class="empty-state">Groups will appear here</div>';
                 }
-            }
-            
-            function clearGroups() {
-                groups = [];
-                groupsContainer.innerHTML = '<div class="empty-state">Groups will appear here</div>';
-                renderPresentationGroups();
             }
             
             function saveToCookie() {
@@ -623,7 +503,6 @@
                     if (classToLoad) {
                         students = classToLoad.students;
                         renderStudents();
-                        clearGroups();
                         alert(`Class "${className}" loaded successfully with ${students.length} students!`);
                     } else {
                         alert(`Class "${className}" not found`);
@@ -646,122 +525,6 @@
             
             function hideError() {
                 groupError.style.display = 'none';
-            }
-            
-            function openPresentation() {
-                if (groups.length === 0) {
-                    alert('Please create groups first');
-                    return;
-                }
-                
-                // Open presentation in a new window
-                const features = 'width=800,height=600,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes';
-                presentationWindowRef = window.open('', 'ClassGroupsPresentation', features);
-                
-                // Write the presentation HTML to the new window
-                presentationWindowRef.document.write(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>Class Groups Presentation</title>
-                        <style>
-                            body {
-                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                                background-color: #f8f9fa;
-                                padding: 2rem;
-                                margin: 0;
-                            }
-                            .presentation-header {
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                                margin-bottom: 2rem;
-                            }
-                            .presentation-title {
-                                font-size: 2rem;
-                                color: #4361ee;
-                                font-weight: 700;
-                            }
-                            .presentation-groups {
-                                display: grid;
-                                gap: 2rem;
-                                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                            }
-                            .presentation-group {
-                                background-color: white;
-                                border-radius: 10px;
-                                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-                                padding: 1.5rem;
-                            }
-                            .presentation-group-title {
-                                font-size: 1.5rem;
-                                color: #4361ee;
-                                margin-bottom: 1rem;
-                                padding-bottom: 0.5rem;
-                                border-bottom: 2px solid #4361ee;
-                            }
-                            .presentation-member {
-                                padding: 0.75rem;
-                                margin-bottom: 0.5rem;
-                                background-color: #f8f9fa;
-                                border-radius: 5px;
-                                font-size: 1.1rem;
-                            }
-                            @media (max-width: 768px) {
-                                .presentation-groups {
-                                    grid-template-columns: 1fr;
-                                }
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="presentation-header">
-                            <div class="presentation-title">Class Groups</div>
-                            <div>Updated: ${new Date().toLocaleTimeString()}</div>
-                        </div>
-                        <div id="presentationGroups" class="presentation-groups">
-                            ${groups.map((group, index) => `
-                                <div class="presentation-group">
-                                    <div class="presentation-group-title">Group ${index + 1} (${group.length} members)</div>
-                                    ${group.map(member => `<div class="presentation-member">${member}</div>`).join('')}
-                                </div>
-                            `).join('')}
-                        </div>
-                        <script>
-                            // This will refresh the presentation every 5 seconds
-                            setInterval(function() {
-                                window.opener.postMessage('refreshPresentation', '*');
-                            }, 5000);
-                            
-                            // Handle refresh from main window
-                            window.addEventListener('message', function(event) {
-                                if (event.data === 'updatePresentation') {
-                                    window.location.reload();
-                                }
-                            });
-                        </script>
-                    </body>
-                    </html>
-                `);
-                
-                // Set up communication between windows
-                window.addEventListener('message', function(event) {
-                    if (event.data === 'refreshPresentation' && presentationWindowRef) {
-                        // Send update command to presentation window
-                        presentationWindowRef.postMessage('updatePresentation', '*');
-                    }
-                });
-                
-                // Set up interval to check for updates
-                setInterval(function() {
-                    if (presentationWindowRef && !presentationWindowRef.closed) {
-                        presentationWindowRef.postMessage('updatePresentation', '*');
-                    }
-                }, 1000);
-            }
-            
-            function closePresentation() {
-                presentationWindow.style.display = 'none';
             }
         });
     </script>
