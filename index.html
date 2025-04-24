@@ -197,15 +197,10 @@
     });
 
     function openPresentationMode() {
-      // Close existing presentation window if it exists
       if (presentationWindow && !presentationWindow.closed) {
         presentationWindow.close();
       }
-      
-      // Open new presentation window
       presentationWindow = window.open('', 'PresentationWindow', 'width=1000,height=800,top=100,left=100');
-      
-      // Write basic HTML structure to the new window
       presentationWindow.document.write(`
         <!DOCTYPE html>
         <html>
@@ -317,22 +312,15 @@
         </body>
         </html>
       `);
-      
-      // Close the document for writing
       presentationWindow.document.close();
-      
-      // Initial update of the presentation
       updatePresentation();
     }
 
     function updatePresentation() {
       if (!presentationWindow || presentationWindow.closed) {
         return;
-      }
-      
+      }      
       const displayType = presentationWindow.document.getElementById('presentation-display').value;
-      
-      // Show/hide elements based on selection
       presentationWindow.document.getElementById('presentation-chart').style.display = 
         (displayType === 'chart' || displayType === 'both') ? 'block' : 'none';
       presentationWindow.document.getElementById('presentation-table').style.display = 
@@ -368,7 +356,6 @@
       const labels = Object.keys(per).map(p => p.replace(/_/g, " "));
       let vals = labels.map((_, i) => metrics[metric](per[Object.keys(per)[i]]));
       
-      // Apply ranking colors
       const zipped = labels.map((l, i) => [l, vals[i]]).sort((a, b) => {
     return metric === "Attack - Defense" ? a[1] - b[1] : b[1] - a[1];
   });
@@ -436,7 +423,6 @@
       const participants = new Set();
       const rounds = Object.keys(roundsData).sort();
       
-      // Collect all participants
       for (const roundId in roundsData) {
         for (const key in roundsData[roundId]) {
           if (key !== 'type') {
@@ -454,14 +440,12 @@
       
       let html = '<div style="overflow-x:auto;"><table><thead><tr><th>Round (Type)</th>';
       
-      // Add participant headers
       participantsArray.forEach(p => {
         html += `<th>${p.replace(/_/g, ' ')}</th>`;
       });
       
       html += '</tr></thead><tbody>';
       
-      // Add data rows
       rounds.forEach(roundId => {
         const roundData = roundsData[roundId];
         const typeClass = roundData.type === 'attack' ? 'type-attack' : 'type-defense';
@@ -623,9 +607,7 @@
           const data = JSON.parse(e.target.result);
           if (data.participants) {
             participantsData = data.participants;
-            // Clear existing participants
             document.getElementById("participants-list").innerHTML = "";
-            // Add new participants
             participantsData.forEach(name => addParticipant(name));
           }
           if (data.rounds) {
@@ -662,7 +644,6 @@
       const participants = new Set();
       const rounds = Object.keys(roundsData).sort();
       
-      // Collect all participants
       for (const roundId in roundsData) {
         for (const key in roundsData[roundId]) {
           if (key !== 'type') {
@@ -680,14 +661,12 @@
       
       let html = '<div style="overflow-x:auto;"><table><thead><tr><th>Round (Type)</th>';
       
-      // Add participant headers
       participantsArray.forEach(p => {
         html += `<th>${p.replace(/_/g, ' ')}</th>`;
       });
       
       html += '</tr></thead><tbody>';
       
-      // Add data rows
       rounds.forEach(roundId => {
         const roundData = roundsData[roundId];
         const typeClass = roundData.type === 'attack' ? 'type-attack' : 'type-defense';
@@ -725,7 +704,6 @@
       const labels = Object.keys(per).map(p => p.replace(/_/g, " "));
       let vals = labels.map((_, i) => metrics[metric](per[Object.keys(per)[i]]));
       
-      // Apply ranking colors to labels
       const zipped = labels.map((l, i) => [l, vals[i]]).sort((a, b) => {
     return metric === "Attack - Defense" ? a[1] - b[1] : b[1] - a[1];
   });
