@@ -572,17 +572,9 @@
     }
 
     const metrics = {
-      "Average": arr => arr.reduce((a, b) => a + b, 0) / arr.length,
-      "Min": arr => Math.min(...arr),
-      "Max": arr => Math.max(...arr),
-      "Median": arr => { const s = [...arr].sort((a, b) => a - b), m = s.length; return m % 2 ? s[(m - 1) / 2] : (s[m / 2 - 1] + s[m / 2]) / 2 },
-      "Std Dev": arr => { const mu = metrics["Average"](arr); return Math.sqrt(arr.reduce((a, b) => a + (b - mu) ** 2, 0) / arr.length) },
-      "Variance": arr => { const sd = metrics["Std Dev"](arr); return sd * sd },
       "Sum": arr => arr.reduce((a, b) => a + b, 0),
-      "Count": arr => arr.length,
-      "Range": arr => Math.max(...arr) - Math.min(...arr),
-      "90th Percentile": arr => { const s = [...arr].sort((a, b) => a - b), idx = 0.9 * (s.length - 1), lo = Math.floor(idx), hi = Math.ceil(idx), f = idx - lo; return s[lo] + (s[hi] - s[lo]) * f },
-      "Attack - Defense": arr => { const atk = arr.filter(x => x.type === "attack").map(x => x.val), defa = arr.filter(x => x.type === "defense").map(x => x.val), avg = a => a.reduce((u, v) => u + v, 0) / a.length || 0; return avg(atk) - avg(defa) }
+      "Count (Round)": arr => arr.length,
+      "90th Percentile": arr => { const s = [...arr].sort((a, b) => a - b), idx = 0.9 * (s.length - 1), lo = Math.floor(idx), hi = Math.ceil(idx), f = idx - lo; return s[lo] + (s[hi] - s[lo]) * f }
     }
 
     function setupControls(){
