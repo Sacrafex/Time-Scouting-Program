@@ -535,13 +535,14 @@
   roundsData[rid] = { type: roundType };
 
   keys.forEach(k => {
-    let value = parseFloat(elapsedTimes[k]); // Convert to a number for manipulation
+    let value = parseFloat(elapsedTimes[k]);
     if (roundType === "attack") {
-      value = -Math.abs(value); // Make sure it's negative
+      value = -Math.abs(value);
     } else if (roundType === "defense") {
-      value = Math.abs(value); // Ensure it's positive (though likely already is)
+      value = Math.abs(value);
     }
-    roundsData[rid][k] = value.toFixed(2); // Store the modified value
+    console.log(value);
+    roundsData[rid][k] = value.toFixed(2);
   });
 
   localStorage.setItem("scouting_rounds", JSON.stringify(roundsData));
